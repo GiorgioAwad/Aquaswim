@@ -325,7 +325,7 @@ body.reel-open { overflow: hidden; }
 .official-resources { padding: 80px 0; border-block: 1px solid rgba(69, 222, 216, .14); background: var(--surface); }
 .resources-grid { display: grid; grid-template-columns: .8fr 1.2fr; align-items: center; gap: 80px; }
 .resources-heading h2 { margin-bottom: 0; font-size: clamp(1.8rem, 3.2vw, 2.7rem); }
-.resource-links { display: grid; grid-template-columns: repeat(2, 1fr); border: 1px solid rgba(69, 222, 216, .2); border-radius: 16px; background: var(--surface-soft); }
+.resource-links { display: grid; grid-template-columns: 1fr; border: 1px solid rgba(69, 222, 216, .2); border-radius: 16px; background: var(--surface-soft); }
 .resource-links a { display: flex; min-height: 122px; align-items: center; justify-content: space-between; gap: 15px; padding: 22px; transition: color .25s ease, background .25s ease; }
 .resource-links a + a { border-left: 1px solid rgba(69, 222, 216, .14); }
 .resource-links a:hover { color: var(--aqua); background: rgba(69, 222, 216, .07); }

@@ -1,0 +1,11 @@
+# Solo se sube lo necesario para construir el sitio
+node_modules
+dist
+backups
+docs
+COTIZACION*.md
+preview-*.png
+assets/*.png
+.env
+.env.*
+*.log
