@@ -385,6 +385,23 @@ h1 .accent { color: var(--aqua); }
   [data-parallax] > img { transform: none; }
 }
 
+/* Movil: la foto del hero es apaisada (1838x856). Con `cover`
+   sobre un hero vertical de ~720px se ampliaba ~2.5x en
+   pantallas 3x y solo se veia un brazo borroso. Aqui se
+   muestra a lo ancho (alto ~98vw, ampliacion ~1.3x), encuadrada
+   en el nadador, y se funde hacia el fondo antes de los botones.
+   Las paradas del degradado van en vw porque dependen del alto
+   de la foto, no del alto del hero. */
+@media (max-width: 570px) {
+  .hero-media {
+    background-size: 210% auto;
+    background-position: 80% 0;
+    -webkit-mask-image: linear-gradient(#000 0, #000 55vw, transparent 98vw);
+    mask-image: linear-gradient(#000 0, #000 55vw, transparent 98vw);
+    will-change: auto;
+  }
+}
+
 /* ---------------------------------------------------------
    9. Movimiento reducido
    Todo visible, nada se transforma.
