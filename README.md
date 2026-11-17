@@ -16,6 +16,23 @@ npm run build
 npm run preview
 ```
 
+## Despliegue
+
+El sitio está publicado en Vercel (equipo FDNDA, proyecto `aquaswim`) en
+https://www.corporacionaquaswim.com. Cada push a `main` en
+`GiorgioAwad/Aquaswim` publica una nueva versión de producción.
+
+- **DNS** (Squarespace Domains): registros `A` para `@` y `www` hacia
+  `76.76.21.21`. Los registros MX, SPF, DMARC y DKIM son del correo de Google
+  Workspace y no deben modificarse.
+- **`vercel.json`**: redirige el dominio sin `www` a `www` y las rutas antiguas
+  del sitio de Google Sites (`/inicio`, `/quiénes-somos`, `/servicios/...`,
+  `/inscripciones`, `/pagos`, `/dian`, `/blog`, `/ranking`) a la nueva página.
+- **SEO**: metadatos y datos estructurados (`SportsClub`) en `index.html`;
+  `robots.txt`, `sitemap.xml`, imagen para redes y logo en `public/`. Al
+  publicar cambios de contenido importantes, actualizar `lastmod` en
+  `public/sitemap.xml`.
+
 ## Estructura
 
 | Archivo | Responsabilidad |
