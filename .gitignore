@@ -1,0 +1,17 @@
+# Dependencias y build
+node_modules/
+dist/
+
+# Respaldos locales
+backups/
+
+# Documentos comerciales (no publicar en repo público)
+COTIZACION*.md
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+.env
+.env.*
+*.log
+docs/*[Cc]otizacion*

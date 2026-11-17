@@ -1,0 +1,432 @@
+/* =========================================================
+   Aquaswim — Sistema de movimiento "Profundidad"
+   Capas a distinta profundidad, luz filtrada y objetos
+   suspendidos. Solo CSS 3D, sin dependencias.
+   Se carga despues de styles.css: en igualdad de
+   especificidad, estas reglas ganan por orden.
+   ========================================================= */
+
+:root {
+  --ease-out-expo: cubic-bezier(.16, 1, .3, 1);
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+  --ease-smooth: cubic-bezier(.4, 0, .2, 1);
+  --dur-fast: 180ms;
+  --dur-base: 380ms;
+  --dur-slow: 700ms;
+}
+
+/* ---------------------------------------------------------
+   1. Barra de progreso de scroll
+   --------------------------------------------------------- */
+
+.scroll-progress {
+  position: fixed;
+  z-index: 200;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--aqua) 55%, #9ffff6);
+  box-shadow: 0 0 18px rgba(69, 222, 216, .55);
+  pointer-events: none;
+  transform: scaleX(var(--progress, 0));
+  transform-origin: 0 50%;
+}
+
+/* ---------------------------------------------------------
+   2. Sistema de reveal
+   Variantes por data-reveal. El escalonado lo calcula
+   motion.js y lo escribe en --delay.
+   --------------------------------------------------------- */
+
+/* Nota: no usar clip-path para ocultar un elemento que un
+   IntersectionObserver vigila. El recorte deja su rect de
+   interseccion en cero, el observador nunca dispara y el
+   elemento no se revela nunca. El barrido por lineas del H1
+   se resuelve con overflow en un envoltorio, mas abajo. */
+
+/* El estado oculto es estatico a proposito. Si aqui se declara
+   la transicion, la variante que motion.js asigna despues del
+   primer pintado (28px -> 40px) se vuelve ella misma una
+   animacion pendiente, no llega a asentarse y la entrada
+   arranca desde el valor equivocado. La transicion vive en el
+   estado revelado: una transicion usa las propiedades del
+   estilo posterior al cambio, asi que la entrada sigue
+   animandose igual. */
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+}
+
+.reveal[data-reveal="scale-in"] { transform: translate3d(0, 14px, 0) scale(.94); }
+
+/* Entrada larga para tarjetas: recorrido mas visible que el
+   reveal generico, en el plano. */
+.reveal[data-reveal="rise-in"] { transform: translate3d(0, 40px, 0); }
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dur-slow) var(--ease-out-expo) var(--delay, 0ms),
+    transform var(--dur-slow) var(--ease-out-expo) var(--delay, 0ms);
+}
+
+/* La tarjeta de estadisticas sube 66px para montarse sobre el
+   hero. Se compone con el reveal en lugar de perderlo. */
+.stats-card.reveal { transform: translate3d(0, -36px, 0); }
+.stats-card.reveal.is-visible { transform: translate3d(0, -66px, 0); }
+
+/* ---------------------------------------------------------
+   3. Hero — escena 3D multicapa
+   motion.js escribe en .hero:
+     --px, --py  posicion del puntero, rango -1..1
+     --sy        pixeles de scroll dentro del hero
+   --------------------------------------------------------- */
+
+.hero {
+  perspective: 1400px;
+  background-image: none;
+}
+
+/* Dos escenas rotan como un bloque con el mismo angulo. Al
+   estar sus capas a distinta Z bajo preserve-3d, la rotacion
+   genera parallax real ademas del desplazamiento de cada capa.
+
+   El degradado .hero-shade queda FUERA de las escenas, entre
+   ambas: al no rotar, cubre siempre de borde a borde. Si
+   rotara, sus esquinas dejarian al descubierto la foto sin
+   sombrear. Las capas de la escena delantera (causticas y
+   burbujas) no tienen bordes duros, asi que pueden rotar sin
+   producir costuras. */
+.hero-scene {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  transform:
+    rotateX(calc(var(--py, 0) * -1.4deg))
+    rotateY(calc(var(--px, 0) * 2deg));
+}
+
+/* Sangrado amplio: al rotar, las esquinas se desplazan hacia
+   dentro y sin margen sobrante asomaria el fondo. */
+.hero-layer {
+  position: absolute;
+  inset: -16% -11%;
+  will-change: transform;
+}
+
+.hero-depth {
+  inset: -24% -18%;
+  background:
+    linear-gradient(160deg, var(--surface-soft), var(--surface));
+  transform: translate3d(
+    calc(var(--px, 0) * -6px),
+    calc(var(--py, 0) * -4px + var(--sy, 0) * .04px),
+    -80px) scale(1.06);
+}
+
+.hero-media {
+  background: url("/assets/hero-swimmer.webp") 50% 42% / cover no-repeat;
+  transform: translate3d(
+    calc(var(--px, 0) * -16px),
+    calc(var(--py, 0) * -11px + var(--sy, 0) * .14px),
+    -30px) scale(1.065);
+}
+
+/* Causticas: luz que se refracta en la superficie del agua */
+.caustics {
+  overflow: hidden;
+  mix-blend-mode: screen;
+  opacity: .55;
+  transform: translateZ(15px);
+}
+
+.caustics i {
+  position: absolute;
+  inset: -25%;
+  background:
+    radial-gradient(ellipse 38% 20% at 21% 28%, rgba(126, 255, 246, .22), transparent 62%),
+    radial-gradient(ellipse 30% 15% at 58% 52%, rgba(69, 222, 216, .17), transparent 64%),
+    radial-gradient(ellipse 44% 19% at 83% 20%, rgba(150, 255, 250, .14), transparent 66%),
+    radial-gradient(ellipse 26% 13% at 40% 78%, rgba(96, 236, 240, .12), transparent 66%);
+  filter: blur(26px);
+  animation: caustic-drift 23s var(--ease-smooth) infinite alternate;
+}
+
+.caustics i:nth-child(2) {
+  filter: blur(52px);
+  opacity: .8;
+  animation-duration: 34s;
+  animation-direction: alternate-reverse;
+}
+
+@keyframes caustic-drift {
+  0%   { transform: translate3d(-3%, -2%, 0) scale(1)    rotate(0deg); }
+  50%  { transform: translate3d(2%, 3%, 0)   scale(1.13) rotate(2.5deg); }
+  100% { transform: translate3d(4%, -3%, 0)  scale(1.05) rotate(-2.5deg); }
+}
+
+/* Burbujas: generadas por motion.js */
+.bubbles {
+  overflow: hidden;
+  transform: translate3d(
+    calc(var(--px, 0) * 24px),
+    calc(var(--py, 0) * 16px),
+    55px);
+}
+
+.bubble {
+  position: absolute;
+  bottom: -10%;
+  left: var(--x);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 27%, rgba(255, 255, 255, .85), rgba(158, 246, 255, .3) 44%, rgba(90, 220, 230, .04) 72%);
+  box-shadow: inset 0 0 6px rgba(255, 255, 255, .35), 0 0 14px rgba(120, 235, 240, .2);
+  opacity: 0;
+  animation: bubble-rise var(--dur) linear var(--delay) infinite;
+}
+
+@keyframes bubble-rise {
+  0%   { opacity: 0; transform: translate3d(0, 0, 0) scale(.55); }
+  9%   { opacity: var(--peak); }
+  50%  { transform: translate3d(var(--drift), -55vh, 0) scale(1); }
+  86%  { opacity: var(--peak); }
+  100% { opacity: 0; transform: translate3d(calc(var(--drift) * -.35), -112vh, 0) scale(1.18); }
+}
+
+/* El contenido se mueve mas que el fondo: refuerza la profundidad */
+.hero-content {
+  transform: translate3d(
+    calc(var(--px, 0) * 13px),
+    calc(var(--py, 0) * 9px),
+    0);
+}
+
+.hero-content.reveal.is-visible {
+  transform: translate3d(
+    calc(var(--px, 0) * 13px),
+    calc(var(--py, 0) * 9px),
+    0);
+}
+
+/* Titulo: cada linea se descubre desde abajo al cargar */
+h1 .line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: .06em;
+  color: inherit;
+}
+
+h1 .line i {
+  display: block;
+  font-style: normal;
+  transform: translate3d(0, 108%, 0);
+  transition: transform 1.05s var(--ease-out-expo) var(--line-delay, 0ms);
+}
+
+.is-loaded h1 .line i { transform: none; }
+h1 .accent { color: var(--aqua); }
+
+/* ---------------------------------------------------------
+   4. Parallax de scroll interno
+   motion.js escribe --shift en pixeles.
+   --------------------------------------------------------- */
+
+[data-parallax] { overflow: hidden; }
+
+[data-parallax] > img {
+  transform: translate3d(0, var(--shift, 0px), 0) scale(1.14);
+  will-change: transform;
+}
+
+/* ---------------------------------------------------------
+   5. Estadisticas — entrada escalonada
+   --------------------------------------------------------- */
+
+.stats-card .stat { opacity: 0; }
+
+.stats-card.is-visible .stat {
+  animation: stat-in .75s var(--ease-out-expo) both;
+}
+
+.stats-card.is-visible .stat:nth-child(1) { animation-delay: 60ms; }
+.stats-card.is-visible .stat:nth-child(2) { animation-delay: 150ms; }
+.stats-card.is-visible .stat:nth-child(3) { animation-delay: 240ms; }
+.stats-card.is-visible .stat:nth-child(4) { animation-delay: 330ms; }
+
+@keyframes stat-in {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+.stats-card .stat svg { transition: transform var(--dur-base) var(--ease-spring); }
+.stats-card .stat:hover svg { transform: translateY(-3px) scale(1.08); }
+
+/* ---------------------------------------------------------
+   6. Botones — barrido de brillo
+   --------------------------------------------------------- */
+
+.button { position: relative; overflow: hidden; }
+
+.button > * { position: relative; z-index: 1; }
+
+.button::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .45) 50%, transparent 62%);
+  content: "";
+  pointer-events: none;
+  transform: translateX(-120%);
+  transition: transform .85s var(--ease-out-expo);
+}
+
+.button:hover::after, .button:focus-visible::after { transform: translateX(120%); }
+.button-outline::after { background: linear-gradient(105deg, transparent 38%, rgba(120, 245, 238, .3) 50%, transparent 62%); }
+.button:active { transform: translateY(0) scale(.985); }
+
+/* ---------------------------------------------------------
+   7. Interacciones de puntero
+   Solo en dispositivos con cursor real. Todo el movimiento
+   ocurre en el plano: elevacion, zoom y luz. Sin rotaciones,
+   sin desplazamiento en Z y sin JS que siga al cursor.
+
+   Ojo con .program-card: lleva tambien la clase .reveal, y
+   .reveal.is-visible fija transform:none con la misma
+   especificidad que el :hover de styles.css. Como motion.css
+   se carga despues, ganaba el reveal y la tarjeta no subia.
+   Por eso su elevacion se declara aqui y no alli.
+   --------------------------------------------------------- */
+
+@media (hover: hover) and (pointer: fine) {
+
+  /* --- Barrido diagonal de las tarjetas con foto ---
+     Una sola pasada al entrar el cursor, mismo recurso que
+     .button. z-index 1 lo deja sobre la foto y bajo el texto. */
+
+  .program-card::after,
+  .reel-trigger::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 38%, rgba(150, 255, 250, .22) 50%, transparent 62%);
+    content: "";
+    pointer-events: none;
+    transform: translateX(-120%);
+    transition: transform .75s var(--ease-out-expo);
+  }
+
+  .program-card:hover::after,
+  .reel-trigger:hover::after { transform: translateX(120%); }
+
+  /* --- Tarjetas de programa: el contenido acompana la subida --- */
+
+  /* El .is-visible repetido no sobra: estas tarjetas llevan
+     tambien .reveal, y .reveal.is-visible empata en
+     especificidad. Sin el, el hover heredaria los 700ms de la
+     entrada y se arrastraria. */
+  .program-card.is-visible { transition: transform var(--dur-base) var(--ease-smooth), border-color var(--dur-base) ease, box-shadow var(--dur-base) ease; }
+  .program-card:hover { transform: translateY(-10px); }
+
+  .program-card .program-icon,
+  .program-card .program-copy {
+    transition: transform var(--dur-base) var(--ease-smooth);
+  }
+
+  .program-card:hover .program-icon { transform: scale(1.06); }
+  .program-card:hover .program-copy { transform: translateY(-4px); }
+
+  /* Borde de gradiente que se enciende */
+  .program-card::before {
+    position: absolute;
+    z-index: 4;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(140deg, rgba(120, 250, 243, .95), rgba(150, 255, 250, .12) 42%, transparent 68%);
+    content: "";
+    opacity: 0;
+    pointer-events: none;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    transition: opacity var(--dur-base) ease;
+  }
+
+  .program-card:hover::before { opacity: 1; }
+
+  /* Existing institutional cards retain their hover. */
+  .identity-card.is-visible { transition: transform var(--dur-base) var(--ease-smooth), box-shadow var(--dur-base) ease, border-color var(--dur-base) ease; }
+  .identity-card:hover { transform: translateY(-7px); border-color: rgba(69, 222, 216, .42); box-shadow: 0 24px 64px rgba(0, 9, 18, .3); }
+  .identity-index { transition: transform var(--dur-slow) var(--ease-smooth), color var(--dur-slow) ease; }
+  .identity-card:hover .identity-index { transform: translate(-6px, 4px); color: var(--aqua); }
+
+  /* --- Enlaces de recursos --- */
+
+  .resource-links a { transition: color var(--dur-base) ease, background var(--dur-base) ease, transform var(--dur-base) var(--ease-smooth); }
+  .resource-links a:hover { transform: translateY(-3px); }
+}
+
+/* ---------------------------------------------------------
+   8. Movil y tablet — versiones ligeras
+   --------------------------------------------------------- */
+
+@media (max-width: 1020px) {
+  .caustics { opacity: .38; }
+  .bubbles { display: none; }
+  .hero-layer { inset: 0; }
+  .hero-media { transform: none; }
+  .hero-depth { transform: none; }
+  .hero-content, .hero-content.reveal.is-visible { transform: none; }
+  [data-parallax] > img { transform: none; }
+}
+
+/* ---------------------------------------------------------
+   9. Movimiento reducido
+   Todo visible, nada se transforma.
+   --------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .stats-card.reveal, .stats-card.reveal.is-visible { transform: translate3d(0, -66px, 0); }
+  .stats-card .stat { opacity: 1; animation: none; }
+  .caustics, .bubbles, .scroll-progress { display: none; }
+  .hero-layer, .hero-content, .hero-content.reveal.is-visible { transform: none; }
+  [data-parallax] > img { transform: none; }
+  h1 .line i { transform: none; }
+  h1 .line { overflow: visible; }
+  .button::after { display: none; }
+  .program-card::after, .reel-trigger::after { display: none; }
+  .program-card:hover .program-icon,
+  .program-card:hover .program-copy,
+  .identity-card:hover, .identity-card:hover .identity-index,
+  .resource-links a:hover { transform: none; }
+}
+
+/* ---------------------------------------------------------
+   10. Tarjeta de estadisticas por debajo de 790px
+
+   Ahi styles.css anula el desplazamiento (transform: none)
+   porque la tarjeta deja de montarse sobre el hero y pasa a
+   fluir debajo. Las reglas de reveal son mas especificas y lo
+   pisaban, provocando que la tarjeta tapase el boton del hero.
+   Este bloque va al final a proposito: asi gana tambien cuando
+   coincide con el bloque de movimiento reducido.
+   --------------------------------------------------------- */
+
+@media (max-width: 790px) {
+  .stats-card.reveal { transform: translate3d(0, 22px, 0); }
+  .stats-card.reveal.is-visible { transform: none; }
+}
+
+@media (max-width: 790px) and (prefers-reduced-motion: reduce) {
+  .stats-card.reveal, .stats-card.reveal.is-visible { transform: none; }
+}
