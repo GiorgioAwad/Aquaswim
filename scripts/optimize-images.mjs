@@ -4,26 +4,50 @@ import { fileURLToPath } from 'node:url';
 
 const asset = (name) => fileURLToPath(new URL(`../assets/${name}`, import.meta.url));
 
+/*
+  cropTop (fracción de la altura) sube al deportista en las tarjetas de
+  programas: la mitad inferior de la tarjeta queda tapada por el icono y el
+  texto. Los fondos grandes (method: portada y metodología; pool: sede) van
+  detrás de degradados oscuros, así que toleran menos ancho y calidad.
+*/
 const images = [
-  ['hero-swimmer.png', 'hero-swimmer.webp', 1920],
-  ['program-kids.png', 'program-kids.webp', 720],
-  ['program-adults.png', 'program-adults.webp', 720],
-  ['program-artistic.png', 'program-artistic.webp', 720],
-  ['program-rehab.png', 'program-rehab.webp', 720],
-  ['coach.png', 'coach.webp', 820],
-  ['pool.png', 'pool.webp', 1920]
+  { name: 'program-kids', width: 720, cropTop: 0.22 },
+  { name: 'program-adults', width: 720, cropTop: 0.26 },
+  { name: 'program-artistic', width: 720 },
+  { name: 'program-multifunctional', width: 720, cropTop: 0.35 },
+  { name: 'program-rehab', width: 720, cropTop: 0.15 },
+  { name: 'team', width: 820 },
+  { name: 'method', width: 1600, quality: 72 },
+  { name: 'pool', width: 1600, quality: 72 }
 ];
 
 /*
   Las fuentes son opcionales: assets/ publica los .webp y los originales
-  pueden no estar en el repositorio. Lo que no exista se conserva como está.
+  (assets/<nombre>.png|jpg|jpeg) pueden no estar en el repositorio. Lo que
+  no exista se conserva como está.
 */
-const pending = images.filter(([input]) => existsSync(asset(input)));
+const pending = images
+  .map(({ name, width, cropTop = 0, quality = 82 }) => ({
+    output: `${name}.webp`,
+    width,
+    cropTop,
+    quality,
+    source: ['png', 'jpg', 'jpeg'].map((ext) => asset(`${name}.${ext}`)).find(existsSync)
+  }))
+  .filter(({ source }) => source);
 
-await Promise.all(pending.map(([input, output, width]) =>
-  sharp(asset(input))
+const cropFromTop = async (source, fraction) => {
+  const image = sharp(source).rotate();
+  if (!fraction) return image;
+  const { info } = await image.clone().raw().toBuffer({ resolveWithObject: true });
+  const top = Math.round(info.height * fraction);
+  return image.extract({ left: 0, top, width: info.width, height: info.height - top });
+};
+
+await Promise.all(pending.map(async ({ source, output, width, cropTop, quality }) =>
+  (await cropFromTop(source, cropTop))
     .resize({ width, withoutEnlargement: true })
-    .webp({ quality: 82, effort: 5 })
+    .webp({ quality, effort: 5 })
     .toFile(asset(output))
 ));
 
